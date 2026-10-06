@@ -114,3 +114,10 @@ Authorization: Bearer <your-access-token>
 ```
 
 You can obtain the token by successfully calling the `/login` endpoint.
+
+# Update in '/login' Endpoint
+
+/login now expects form fields, not JSON. Anything else that calls it, like a frontend or a curl test, must send username and password as form data like this:
+
+curl -X POST -d "username=NAME&password=PASS" http://localhost:8000/login
+

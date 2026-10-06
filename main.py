@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, ConfigDict
 from database import get_db
 from models import Book as BookModel
@@ -28,15 +29,15 @@ async def register(user:UserCreate, db = Depends(get_db)):
     return {"Message": "User Created Successfully."}
 
 @app.post("/login")
-async def login(user:UserCreate, db = Depends(get_db)):
-    db_user = db.query(UserModel).filter(UserModel.username == user.username).first()
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db = Depends(get_db)):
+    db_user = db.query(UserModel).filter(UserModel.username == form_data.username).first()
     if db_user is None:
         raise HTTPException(status_code=401, detail="Incorrect username or password")
-    
-    if not verify_password(user.password, db_user.password):
+
+    if not verify_password(form_data.password, db_user.password):
         raise HTTPException(status_code=401, detail="Incorrect username or password")
-    
-    access_token = create_access_token(data={"sub": user.username})
+
+    access_token = create_access_token(data={"sub": form_data.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.get("/books", response_model=list[Book])
