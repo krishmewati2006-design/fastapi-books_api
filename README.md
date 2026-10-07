@@ -86,6 +86,26 @@ uvicorn main:app --reload
 
 The API will be available at `http://127.0.0.1:8000`.
 
+## Architecture
+
+```mermaid
+flowchart LR
+    U["You (browser)"] -->|"HTTP port 8000"| SG
+    subgraph AWS["AWS Cloud - ap-southeast-2 (Sydney)"]
+        SG["Security group: SSH and 8000 allowed from my IP only"]
+        subgraph EC2["EC2 instance: t3.micro, Ubuntu"]
+            subgraph DC["Docker Compose"]
+                API["api container: FastAPI + Uvicorn on 8000"]
+                DB["db container: PostgreSQL 16"]
+            end
+            VOL[("Docker volume: pgdata")]
+        end
+    end
+    SG --> API
+    API -->|"SQLAlchemy, port 5432, private network"| DB
+    DB --- VOL
+```
+
 ## Deployment (Docker Compose on AWS EC2)
 
 Follow these steps to deploy the application on an AWS EC2 instance using Docker Compose:
