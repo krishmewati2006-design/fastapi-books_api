@@ -86,10 +86,107 @@ uvicorn main:app --reload
 
 The API will be available at `http://127.0.0.1:8000`.
 
+## Deployment (Docker Compose on AWS EC2)
+
+Follow these steps to deploy the application on an AWS EC2 instance using Docker Compose:
+
+# 1. Prerequisites on AWS & EC2
+- An active AWS account with an **EC2 instance** (Ubuntu 22.04 LTS or Amazon Linux 2023 recommended).
+- Configure the EC2 **Security Group** to allow inbound traffic on:
+  - **SSH (Port 22)**: For server access.
+  - **HTTP (Port 80)** or **API (Port 8000)**: To access the API.
+
+# 2. Prepare the Docker Configuration
+Ensure your repository includes a `Dockerfile` and a `docker-compose.yml` file.
+
+## Deployment (Docker Compose on AWS EC2)
+
+This project runs as two containers managed by Docker Compose: the FastAPI app (`api`) and PostgreSQL (`db`). The database stores its data in a named Docker volume, so data survives container restarts and rebuilds. Postgres is not exposed to the internet; only the API is.
+
+### 1. Prerequisites
+
+- An AWS EC2 instance running **Ubuntu LTS** (a `t3.micro` is enough for a demo).
+- A **security group** with these inbound rules:
+  - **SSH (port 22)**, source: your own IP only.
+  - **Custom TCP (port 8000)**, source: your own IP only (or the addresses that need access).
+- The `.pem` key file for the instance.
+
+### 2. Connect and install Docker
+
+```bash
+ssh -i /path/to/your-key.pem ubuntu@<EC2-PUBLIC-IP>
+
+sudo apt update && sudo apt install -y docker.io docker-compose-v2
+sudo usermod -aG docker $USER
+```
+
+Log out and reconnect over SSH so the group change takes effect (then `docker` works without `sudo`).
+
+### 3. Get the code and configure secrets
+
+```bash
+git clone https://github.com/krishmewati2006-design/fastapi-books_api.git
+cd fastapi-books_api
+```
+
+Generate two random values:
+
+```bash
+openssl rand -hex 32   # use as SECRET_KEY
+openssl rand -hex 16   # use as POSTGRES_PASSWORD
+```
+
+Create a `.env` file (`nano .env`) with these four variables:
+
+```env
+POSTGRES_USER=books_user
+POSTGRES_PASSWORD=<generated-password>
+POSTGRES_DB=books_db
+SECRET_KEY=<generated-secret-key>
+```
+
+`.env` is listed in `.gitignore`. Never commit it. `docker-compose.yml` builds the `DATABASE_URL` from these values automatically.
+
+### 4. Build and start
+
+```bash
+docker compose up -d --build
+docker compose ps
+```
+
+`db` should show as **healthy** and `api` as **running**. Both are set to `restart: unless-stopped`, so they come back after a server reboot.
+
+### 5. Create the database tables
+
+On a fresh database, run the migrations once:
+
+```bash
+docker compose exec api alembic upgrade head
+```
+
+### 6. Verify
+
+Open `http://<EC2-PUBLIC-IP>:8000/docs` in your browser. Use the **Authorize** button to log in and try the `/books` endpoints.
+
+To read the application logs:
+
+```bash
+docker compose logs -f api
+```
+
+Press `Ctrl+C` to stop following the logs.
+
+### Notes
+
+- If you stop and start the instance, its **public IP changes**. If you can't connect, check the new IP and make sure your security group rules match your current IP.
+- Do **not** run `docker compose down -v`. The `-v` flag deletes the database volume and all your data.
+- The API runs over plain HTTP. For real use, put it behind HTTPS (for example with a reverse proxy and a certificate).
+
+
 ## API Documentation
 
 Once the server is running, you can access the interactive API documentation at:
-- Swagger UI: `http://127.0.0.1:8000/docs`
+- Swagger UI: `http://<EC2-PUBLIC-IP>:8000/docs`
 - Redoc: `http://127.0.0.1:8000/redoc`
 
 ## API Endpoints
