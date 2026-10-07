@@ -1,6 +1,6 @@
 # Books API
 
-The Books API is a robust, production-ready RESTful service built with FastAPI for managing a library of books. It features a secure authentication system using JSON Web Tokens (JWT) and utilizes SQLAlchemy for database interactions with PostgreSQL.
+The Books API is a robust, deployed on AWS EC2 with Docker Compose RESTful service built with FastAPI for managing a library of books. It features a secure authentication system using JSON Web Tokens (JWT) and utilizes SQLAlchemy for database interactions with PostgreSQL.
 
 ## Features
 
@@ -52,7 +52,7 @@ Before setting up the project, ensure you have the following installed:
 
 ## Configuration
 
-The application uses environment variables for configuration. Create a `.env` file in the root directory (one is already provided in the source for development, but should be updated for production):
+The application uses environment variables for configuration. Create a `.env` file in the root directory to store your credentials. It is not included in the repository, because it is listed in `.gitignore`.
 
 ```env
 DATABASE_URL=postgresql://<user>:<password>@<host>:<port>/<database_name>
