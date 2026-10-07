@@ -106,6 +106,11 @@ flowchart LR
     DB --- VOL
 ```
 
+## Screenshots
+
+![Containers running on EC2](images/docker-compose-ps.png)
+![Swagger UI served from EC2](images/swagger-docs.png)
+
 ## Deployment (Docker Compose on AWS EC2)
 
 Follow these steps to deploy the application on an AWS EC2 instance using Docker Compose:
