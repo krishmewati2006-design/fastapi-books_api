@@ -1,10 +1,14 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, File, UploadFile, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, ConfigDict
 from database import get_db
 from models import Book as BookModel
 from models import User as UserModel
 from auth import get_password_hash, verify_password, create_access_token, get_current_user
+import boto3, os
+
+s3 = boto3.client("s3", region_name="ap-southeast-2")
+BUCKET = os.getenv("S3_BUCKET")
 
 app = FastAPI()
 
@@ -80,3 +84,32 @@ async def update_book(book_id:int, book:Book, db = Depends(get_db), username = D
     db.commit()
     db.refresh(item)
     return item
+
+@app.post("/books/{book_id}/cover")
+def upload_book_cover(book_id:int, file: UploadFile = File(...), username = Depends(get_current_user)):
+    file_key = f"covers/{book_id}/{file.filename}"
+
+    try:
+        s3.upload_fileobj(
+            file.file,
+            BUCKET,
+            file_key,
+            ExtraArgs={"ContentType": file.content_type}
+        )
+            
+        return {
+            "message": "Cover uploaded successfully",
+            "book_id": book_id,
+            "file_key": file_key,
+            "filename": file.filename,
+            "bucket": BUCKET
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload to S3"
+        )
+    finally:
+        file.close()
+    
