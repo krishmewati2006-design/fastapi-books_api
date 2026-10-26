@@ -17,6 +17,12 @@ services:
   api:
     build: .
     restart: unless-stopped
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ap-southeast-2
+        awslogs-group: /books-api/api
+        awslogs-create-group: "true"
     depends_on:
       db:
         condition: service_healthy
