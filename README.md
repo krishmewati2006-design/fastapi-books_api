@@ -88,23 +88,31 @@ The API will be available at `http://127.0.0.1:8000`.
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    U["You (browser)"] -->|"HTTP port 8000"| SG
-    subgraph AWS["AWS Cloud - ap-southeast-2 (Sydney)"]
-        SG["Security group: SSH and 8000 allowed from my IP only"]
-        subgraph EC2["EC2 instance: t3.micro, Ubuntu"]
-            subgraph DC["Docker Compose"]
-                API["api container: FastAPI + Uvicorn on 8000"]
-                DB["db container: PostgreSQL 16"]
-            end
-            VOL[("Docker volume: pgdata")]
-        end
-    end
-    SG --> API
-    API -->|"SQLAlchemy, port 5432, private network"| DB
-    DB --- VOL
-```
+   ```mermaid
+   flowchart LR
+       U["Browser"] -->|"HTTPS 443"| SG
+       GH["GitHub Actions"] -->|"push to main"| SSM["AWS Systems Manager"]
+       subgraph AWS["AWS - ap-southeast-2 (Sydney)"]
+           SG["Security group"]
+           SSM -->|"Run Command"| EC2
+           subgraph EC2["EC2 t3.micro with Elastic IP"]
+               subgraph DC["Docker Compose"]
+                   CADDY["caddy: HTTPS + Let's Encrypt"]
+                   API["api: FastAPI + Uvicorn"]
+                   DB["db: PostgreSQL 16"]
+               end
+               VOL[("pgdata volume")]
+           end
+           S3[("S3 bucket: book covers")]
+           CW["CloudWatch Logs"]
+       end
+       SG --> CADDY
+       CADDY -->|"port 8000, private network"| API
+       API -->|"port 5432"| DB
+       DB --- VOL
+       API -->|"boto3 via IAM role"| S3
+       API -.->|"awslogs driver"| CW
+   ```
 
 ## Screenshots
 
@@ -130,10 +138,11 @@ This project runs as two containers managed by Docker Compose: the FastAPI app (
 
 ### 1. Prerequisites
 
-- An AWS EC2 instance running **Ubuntu LTS** (a `t3.micro` is enough for a demo).
+- An AWS EC2 instance running **Ubuntu LTS** (a `t3.micro` is enough for a demo) with an Elastic IP attached.
 - A **security group** with these inbound rules:
   - **SSH (port 22)**, source: your own IP only.
-  - **Custom TCP (port 8000)**, source: your own IP only (or the addresses that need access).
+  - **HTTP (port 80) and HTTPS (port 443)**,Publicly open to handle web traffic and Let's Encrypt SSL/TLS certificate generation via Caddy.
+  - **Custom TCP (port 8000)**, Closed (since traffic is now routed internally through the reverse proxy).
 - The `.pem` key file for the instance.
 
 ### 2. Connect and install Docker
@@ -191,7 +200,7 @@ docker compose exec api alembic upgrade head
 
 ### 6. Verify
 
-Open `http://<EC2-PUBLIC-IP>:8000/docs` in your browser. Use the **Authorize** button to log in and try the `/books` endpoints.
+Open `https://<your-host>/docs` in your browser. Use the Authorize button to log in and try the `/books` endpoints. (Note: The API is now served securely via Caddy on standard ports, rather than directly on port 8000).
 
 To read the application logs:
 
@@ -206,6 +215,8 @@ Press `Ctrl+C` to stop following the logs.
 - If you stop and start the instance, its **public IP changes**. If you can't connect, check the new IP and make sure your security group rules match your current IP.
 - Do **not** run `docker compose down -v`. The `-v` flag deletes the database volume and all your data.
 - The API runs over plain HTTP. For real use, put it behind HTTPS (for example with a reverse proxy and a certificate).
+**Automated Deployment (CI/CD)**
+- pushing changes to the `main` braching automatically triggers a Github Actions Workflow. This pipeline securely communicates with AWS Systems Manager (SSM) to execute deployment commands on the EC2 instance- Eliminating the need for manual SSH access.  
 
 
 ## API Documentation
