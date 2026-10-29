@@ -22,5 +22,7 @@ jobs:
             --instance-ids i-0b3e7b4f6aba63f6c \
             --parameters 'commands=["set -e","cd /home/ubuntu/fastapi-books_api","sudo -u ubuntu -H git pull","sudo -u ubuntu -H docker compose up -d --build"]' \
             --query "Command.CommandId" --output text)
-          aws ssm wait command-executed --command-id "$CMD_ID" --instance-id i-0b3e7b4f6aba63f6c
-          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id i-0b3e7b4f6aba63f6c --query "[Status, StandardOutputContent]" --output text
+          aws ssm wait command-executed --command-id "$CMD_ID" --instance-id i-0b3e7b4f6aba63f6c || true
+          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id i-0b3e7b4f6aba63f6c --query "{Status:Status,Output:StandardOutputContent,Errors:StandardErrorContent}" --output yaml
+          STATUS=$(aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id i-0b3e7b4f6aba63f6c --query Status --output text)
+          test "$STATUS" = "Success"
